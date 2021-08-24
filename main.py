@@ -1,13 +1,18 @@
 from selenium import webdriver
+import credentials as cr
 import sqlite3
 from time import sleep
 
-class Bot():
+class Bot:
     def __init__(self):
-        self.login('user', 'password')
+        self.login(cr.username, cr.password)
         self.home()
-        self.followers()
+        self.seguidores = self.followers('seguidores')
+        self.seguindo = self.followers('seguindo')
+        print(self.seguindo)
+        print(self.seguidores)
         self.addFollower()
+        input('digite')
 
     def login(self, username, password):
         #login function
@@ -39,10 +44,10 @@ class Bot():
             '//*[@id="react-root"]/section/nav/div[2]/div/div/div[3]/div/div[5]/div[2]/div[2]/div[2]/a[1]').click()
         sleep(7)
 
-    def followers(self):
-        #captura lista com os seguidores do perfil
+    def followers(self, item):
+        #captura lista com de acordo com o parametro item especificado followers following
 
-        self.driver.find_element_by_partial_link_text('seguidores').click()
+        self.driver.find_element_by_partial_link_text(item).click()
         sleep(3)
         jscommand = """ 
         followers = document.querySelector(".isgrP");
@@ -62,12 +67,6 @@ class Bot():
 
         sleep(2)
 
-        db = sqlite3.connect("followers.sqlite")
-        cursor = db.cursor()
-        cursor.execute("CREATE TABLE IF NOT EXISTS followers(username TEXT)")
-        cursor.execute("CREATE TABLE IF NOT EXISTS unfollow(username TEXT)")
-        db.close()
-
         users = self.driver.find_elements_by_css_selector("._0imsa")
         self.followers_list = []
 
@@ -75,47 +74,31 @@ class Bot():
             each = user.text
             self.followers_list.append(each)
 
-        print(self.followers_list)
-        print("Followers have been successfully received.")
+        print(f"{item} have been successfully received.")
         sleep(2)
+        self.driver.find_element_by_xpath('/html/body/div[6]/div/div/div[1]/div/div[2]/button').click()
+        return self.followers_list
 
     def addFollower(self):
         #adiciona no bd do sqlite os usuarios capturados pela lista da função anterior
 
         db = sqlite3.connect("followers.sqlite")
         cursor = db.cursor()
+        cursor.execute("CREATE TABLE IF NOT EXISTS followers(username TEXT)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS following(username TEXT)")
+        cursor.execute("DELETE FROM followers")
+        cursor.execute("DELETE FROM following")
+        db.commit()
 
-        select = "SELECT * FROM followers"
-        cursor.execute(select)
-        dbRead = cursor.fetchall()
-
-        for item in dbRead:
-            if item[0] in self.followers_list:
-                self.followers_list.pop(self.followers_list.index(item[0]))
-            else:
-                delData = "DELETE FROM followers WHERE username = ?"
-                cursor.execute(delData, (item[0],))
-                db.commit()
-
-                insData = "INSERT INTO unfollow VALUES(?)"
-                cursor.execute(insData, (item[0],))
-                db.commit()
-                print(f"{item[0]} has stopped following you!")
-
-        for i in self.followers_list:
-            selData = "SELECT * FROM unfollow WHERE username = ?"
-            cursor.execute(selData, (i,))
-            result = cursor.fetchall()
-
-            if len(result) > 0:
-                delData2 = "DELETE FROM unfollow WHERE username = ?"
-                cursor.execute(delData2, (i,))
-                db.commit()
-
+        for i in self.seguidores:
             insData2 = "INSERT INTO followers VALUES(?)"
             cursor.execute(insData2, (i,))
             db.commit()
-            print(f"New follower: {i}")
+
+        for j in self.seguindo:
+            insData2 = "INSERT INTO following VALUES(?)"
+            cursor.execute(insData2, (i,))
+            db.commit()
 
         db.close()
         print("Process completed. You can close the program and browse the database.")
