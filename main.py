@@ -9,10 +9,11 @@ class Bot:
         self.home()
         self.seguidores = self.followers('seguidores')
         self.seguindo = self.followers('seguindo')
-        print(self.seguindo)
-        print(self.seguidores)
+        self.unfollow = []
+        print(len(self.seguindo))
+        print(len(self.seguidores))
         self.addFollower()
-        input('digite')
+
 
     def login(self, username, password):
         #login function
@@ -42,10 +43,10 @@ class Bot:
         sleep(1)
         self.driver.find_element_by_xpath(
             '//*[@id="react-root"]/section/nav/div[2]/div/div/div[3]/div/div[5]/div[2]/div[2]/div[2]/a[1]').click()
-        sleep(7)
+        sleep(5)
 
     def followers(self, item):
-        #captura lista com de acordo com o parametro item especificado followers following
+        #captura lista com de acordo com o parametro 'item' especificado 'followers' 'following'
 
         self.driver.find_element_by_partial_link_text(item).click()
         sleep(3)
@@ -86,22 +87,29 @@ class Bot:
         cursor = db.cursor()
         cursor.execute("CREATE TABLE IF NOT EXISTS followers(username TEXT)")
         cursor.execute("CREATE TABLE IF NOT EXISTS following(username TEXT)")
+        cursor.execute("CREATE TABLE IF NOT EXISTS unfollow(username TEXT)")
         cursor.execute("DELETE FROM followers")
         cursor.execute("DELETE FROM following")
+        cursor.execute("DELETE FROM unfollow")
         db.commit()
 
-        for i in self.seguidores:
-            insData2 = "INSERT INTO followers VALUES(?)"
-            cursor.execute(insData2, (i,))
+        #adiciona ao bd cada pessoa da lista de followers
+        for seguidor in self.seguidores:
+            cursor.execute("INSERT INTO followers VALUES(?)", (seguidor,))
             db.commit()
 
-        for j in self.seguindo:
-            insData2 = "INSERT INTO following VALUES(?)"
-            cursor.execute(insData2, (i,))
+        #captura e adiciona a lista cada pessoa na lista de following e realiza verificação
+        # se a pessoa o segue de volta e adiciona a outra lista e BD
+        for seguindo in self.seguindo:
+            cursor.execute("INSERT INTO following VALUES(?)", (seguindo,))
+            if seguindo not in self.seguidores:
+                self.unfollow.append(seguindo)
+                cursor.execute("INSERT INTO unfollow VALUES(?)", (seguindo,))
             db.commit()
 
         db.close()
         print("Process completed. You can close the program and browse the database.")
+
 
 def main():
     mybot = Bot()
